@@ -135,7 +135,7 @@ describe('MockClaude', () => {
 
       // assert
       expect(observer.onEvent).toHaveBeenCalledOnce()
-      expect(observer.onEvent).toHaveBeenCalledWith(ctx, 'llm.response', { tokens: { input: 0, output: 0 }, modelId: 'mock' })
+      expect(observer.onEvent).toHaveBeenCalledWith(ctx, 'llm.response', { tokens: { input: 0, output: 0 }, modelId: 'mock', stopReason: 'end' })
     })
 
     it('passes the StepContext from setStepContext to onEvent', async () => {

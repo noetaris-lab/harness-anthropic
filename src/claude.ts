@@ -1,4 +1,4 @@
-import type { LLM, Message, Tool, ToolCall, LLMResponse } from '@noetaris/harness-types'
+import type { LLM, Message, Tool, ToolCall, LLMResponse, LLMUsageEvent } from '@noetaris/harness-types'
 import type { ObserverAware, Observer, StepContext } from '@noetaris/harness'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Tool as AnthropicSDKTool } from '@anthropic-ai/sdk/resources/messages/messages.js'
@@ -138,10 +138,12 @@ export class Claude implements LLM, ObserverAware {
 
     const result = normalizeResponse(response)
 
-    this.observer.onEvent?.(this.stepContext, 'llm.response', {
-      tokens: { input: response.usage.input_tokens, output: response.usage.output_tokens },
-      modelId: this.model,
-    })
+    const event: LLMUsageEvent = {
+      tokens:     { input: response.usage.input_tokens, output: response.usage.output_tokens },
+      modelId:    this.model,
+      stopReason: result.stopReason,
+    }
+    this.observer.onEvent?.(this.stepContext, 'llm.response', event)
 
     return result
   }

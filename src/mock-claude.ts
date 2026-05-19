@@ -1,4 +1,4 @@
-import type { LLM, Message, Tool, LLMResponse } from '@noetaris/harness-types'
+import type { LLM, Message, Tool, LLMResponse, LLMUsageEvent } from '@noetaris/harness-types'
 import type { ObserverAware, Observer, StepContext } from '@noetaris/harness'
 
 export class MockClaudeEmptyQueueError extends Error {
@@ -49,10 +49,12 @@ export class MockClaude implements LLM, ObserverAware {
 
     this.lastMessages = messages
 
-    this.observer.onEvent?.(this.stepContext, 'llm.response', {
-      tokens: { input: 0, output: 0 },
-      modelId: 'mock',
-    })
+    const event: LLMUsageEvent = {
+      tokens:     { input: 0, output: 0 },
+      modelId:    'mock',
+      stopReason: response.stopReason,
+    }
+    this.observer.onEvent?.(this.stepContext, 'llm.response', event)
 
     return response
   }
