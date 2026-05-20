@@ -3,7 +3,9 @@ import type { ObserverAware, Observer, StepContext } from '@noetaris/harness'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Tool as AnthropicSDKTool } from '@anthropic-ai/sdk/resources/messages/messages.js'
 
+/** Options for {@link Claude}. */
 export interface ClaudeOptions {
+  /** Anthropic API key. Defaults to the `ANTHROPIC_API_KEY` environment variable. */
   apiKey?: string
 }
 
@@ -106,12 +108,29 @@ function normalizeResponse(response: Anthropic.Message): LLMResponse {
 
 const ZEROED_STEP_CONTEXT: StepContext = { agentId: '', sessionId: '', stepName: '' }
 
+/**
+ * {@link LLM} adapter for the Anthropic Messages API.
+ *
+ * Implements {@link ObserverAware} — when an observer is bound the adapter
+ * emits an `'llm.response'` event carrying an `LLMUsageEvent` payload after
+ * each successful invocation.
+ *
+ * @example
+ * ```ts
+ * const llm = new Claude('claude-3-5-haiku-20241022')
+ * const response = await llm.invoke(messages)
+ * ```
+ */
 export class Claude implements LLM, ObserverAware {
   private readonly client: Anthropic
   private readonly model: string
   private observer: Observer = {}
   private stepContext: StepContext = ZEROED_STEP_CONTEXT
 
+  /**
+   * @param model - Anthropic model ID, e.g. `'claude-3-5-haiku-20241022'`.
+   * @param options - Optional API key override.
+   */
   constructor(model: string, options?: ClaudeOptions) {
     this.model = model
     this.client = new Anthropic({ apiKey: options?.apiKey })
