@@ -161,6 +161,7 @@ export class Claude implements LLM, ObserverAware {
       tokens:     { input: response.usage.input_tokens, output: response.usage.output_tokens },
       modelId:    this.model,
       stopReason: result.stopReason,
+      providerName: 'anthropic',
     }
     this.observer.onEvent?.(this.stepContext, 'llm.response', event)
 

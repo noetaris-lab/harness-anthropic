@@ -212,7 +212,7 @@ describe('Claude', () => {
       expect(mockObserver.onEvent).toHaveBeenCalledWith(
         expect.any(Object),
         'llm.response',
-        { tokens: { input: 25, output: 10 }, modelId: 'claude-sonnet-4-6', stopReason: 'end' }
+        { tokens: { input: 25, output: 10 }, modelId: 'claude-sonnet-4-6', stopReason: 'end', providerName: 'anthropic' }
       )
     })
 

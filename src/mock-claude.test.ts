@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { MockClaude, MockClaudeEmptyQueueError } from './mock-claude.js'
 import type { LLMResponse, Message } from '@noetaris/harness-types'
 import type { StepContext } from '@noetaris/harness'
@@ -135,7 +135,7 @@ describe('MockClaude', () => {
 
       // assert
       expect(observer.onEvent).toHaveBeenCalledOnce()
-      expect(observer.onEvent).toHaveBeenCalledWith(ctx, 'llm.response', { tokens: { input: 0, output: 0 }, modelId: 'mock', stopReason: 'end' })
+      expect(observer.onEvent).toHaveBeenCalledWith(ctx, 'llm.response', { tokens: { input: 0, output: 0 }, modelId: 'mock', stopReason: 'end', providerName: 'mock' })
     })
 
     it('passes the StepContext from setStepContext to onEvent', async () => {
