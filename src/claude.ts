@@ -7,6 +7,28 @@ import type { Tool as AnthropicSDKTool } from '@anthropic-ai/sdk/resources/messa
 export interface ClaudeOptions {
   /** Anthropic API key. Defaults to the `ANTHROPIC_API_KEY` environment variable. */
   apiKey?: string
+  /**
+   * Sampling temperature in [0, 1]. Higher values produce more varied output.
+   * When absent, the provider default applies.
+   */
+  temperature?: number
+  /**
+   * Maximum number of tokens to generate.
+   * Defaults to `4096` when absent.
+   */
+  maxTokens?: number
+  /**
+   * Top-p nucleus sampling probability. When absent, the provider default applies.
+   */
+  topP?: number
+  /**
+   * Extended thinking configuration for supported models.
+   * When present, enables extended thinking mode with the specified token budget.
+   */
+  thinking?: {
+    type: 'enabled'
+    budgetTokens: number
+  }
 }
 
 type AnthropicContentBlock =
@@ -124,15 +146,17 @@ const ZEROED_STEP_CONTEXT: StepContext = { agentId: '', sessionId: '', stepName:
 export class Claude implements LLM, ObserverAware {
   private readonly client: Anthropic
   private readonly model: string
+  private readonly options?: ClaudeOptions
   private observer: Observer = {}
   private stepContext: StepContext = ZEROED_STEP_CONTEXT
 
   /**
    * @param model - Anthropic model ID, e.g. `'claude-3-5-haiku-20241022'`.
-   * @param options - Optional API key override.
+   * @param options - Optional configuration including API key and generation params.
    */
   constructor(model: string, options?: ClaudeOptions) {
     this.model = model
+    this.options = options
     this.client = new Anthropic({ apiKey: options?.apiKey })
   }
 
@@ -151,7 +175,10 @@ export class Claude implements LLM, ObserverAware {
     const response = await this.client.messages.create({
       model: this.model,
       messages: translatedMessages,
-      max_tokens: 4096,
+      max_tokens: this.options?.maxTokens ?? 4096,
+      ...(this.options?.temperature !== undefined ? { temperature: this.options.temperature } : {}),
+      ...(this.options?.topP !== undefined ? { top_p: this.options.topP } : {}),
+      ...(this.options?.thinking !== undefined ? { thinking: { type: this.options.thinking.type, budget_tokens: this.options.thinking.budgetTokens } } : {}),
       ...(tools !== undefined ? { tools: translateTools(tools) } : {}),
     })
 

@@ -425,6 +425,226 @@ describe('Claude', () => {
 
   })
 
+  describe('Group 7: Generation Params', () => {
+
+    describe('default behavior with no generation params', () => {
+
+      it('sends max_tokens: 4096 and omits optional params when no generation options are given', async () => {
+        // arrange
+        mockCreate.mockResolvedValue({
+          id: 'msg_test',
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'hello' }],
+          model: 'claude-3-5-haiku-20241022',
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 10, output_tokens: 5 },
+        })
+        const claude = new Claude('claude-3-5-haiku-20241022')
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        expect(mockCreate).toHaveBeenCalledOnce()
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ max_tokens: 4096 })
+        expect(callArg).not.toHaveProperty('temperature')
+        expect(callArg).not.toHaveProperty('top_p')
+        expect(callArg).not.toHaveProperty('thinking')
+      })
+
+    })
+
+    describe('forwarding individual and combined generation params', () => {
+
+      it('sends max_tokens: 8192 when maxTokens: 8192 is set', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { maxTokens: 8192 })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ max_tokens: 8192 })
+      })
+
+      it('sends temperature: 0.7 and preserves default max_tokens: 4096 when temperature is set', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { temperature: 0.7 })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ temperature: 0.7, max_tokens: 4096 })
+      })
+
+      it('sends top_p: 0.9 when topP: 0.9 is set', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { topP: 0.9 })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ top_p: 0.9 })
+        expect(callArg).not.toHaveProperty('topP')
+      })
+
+      it('sends thinking with budget_tokens when thinking.budgetTokens is set', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { thinking: { type: 'enabled', budgetTokens: 2000 } })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ thinking: { type: 'enabled', budget_tokens: 2000 } })
+        expect(callArg.thinking).not.toHaveProperty('budgetTokens')
+      })
+
+      it('sends all four generation params with correct provider-form field names when all options are set', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', {
+          temperature: 0.5,
+          maxTokens: 8192,
+          topP: 0.8,
+          thinking: { type: 'enabled', budgetTokens: 1500 },
+        })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({
+          temperature: 0.5,
+          max_tokens: 8192,
+          top_p: 0.8,
+          thinking: { type: 'enabled', budget_tokens: 1500 },
+        })
+      })
+
+    })
+
+    describe('explicitly undefined options use defaults or are absent', () => {
+
+      it('omits temperature from body when temperature: undefined is passed explicitly', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { temperature: undefined })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).not.toHaveProperty('temperature')
+        expect(callArg).toMatchObject({ max_tokens: 4096 })
+      })
+
+      it('sends max_tokens: 4096 when maxTokens: undefined is passed explicitly', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { maxTokens: undefined })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ max_tokens: 4096 })
+      })
+
+      it('omits top_p from body when topP: undefined is passed explicitly', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { topP: undefined })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).not.toHaveProperty('top_p')
+      })
+
+      it('omits thinking from body when thinking: undefined is passed explicitly', async () => {
+        // arrange
+        const claude = new Claude('claude-3-5-haiku-20241022', { thinking: undefined })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).not.toHaveProperty('thinking')
+      })
+
+    })
+
+    describe('generation params coexist with tools', () => {
+
+      it('includes both thinking and tools in request body when both are provided', async () => {
+        // arrange
+        const tool = {
+          name: 'get_weather',
+          description: 'Returns weather for a city',
+          inputSchema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+        }
+        const claude = new Claude('claude-3-5-haiku-20241022', { thinking: { type: 'enabled', budgetTokens: 1000 } })
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'What is the weather?' }], { tools: [tool] })
+
+        // assert
+        const callArg = mockCreate.mock.calls[0]?.[0]
+        expect(callArg).toMatchObject({ thinking: { type: 'enabled', budget_tokens: 1000 } })
+        expect(callArg.tools).toHaveLength(1)
+        expect(callArg.tools[0]).toMatchObject({ name: 'get_weather' })
+      })
+
+    })
+
+    describe('observer event integrity', () => {
+
+      it('emits llm.response event with correct token counts and metadata when generation params are set', async () => {
+        // arrange
+        mockCreate.mockResolvedValue({
+          id: 'msg_obs',
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'result' }],
+          model: 'claude-3-5-haiku-20241022',
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 20, output_tokens: 15 },
+        })
+        const mockObserver = { onEvent: vi.fn() }
+        const claude = new Claude('claude-3-5-haiku-20241022', { temperature: 0.9, maxTokens: 2048, topP: 0.7 })
+        claude.bindObserver(mockObserver)
+
+        // act
+        await claude.invoke([{ role: 'user', content: 'hi' }])
+
+        // assert
+        expect(mockObserver.onEvent).toHaveBeenCalledWith(
+          expect.anything(),
+          'llm.response',
+          expect.objectContaining({
+            tokens: { input: 20, output: 15 },
+            modelId: 'claude-3-5-haiku-20241022',
+            stopReason: 'end',
+            providerName: 'anthropic',
+          })
+        )
+      })
+
+    })
+
+  })
+
   describe('Group 6: Edge Cases and Repeated Calls', () => {
 
     it('forwards empty messages array to SDK without modification', async () => {
