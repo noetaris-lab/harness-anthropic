@@ -208,7 +208,6 @@ describe('Claude', () => {
       await claude.invoke([{ role: 'user', content: 'hi' }])
 
       // assert
-      expect(mockObserver.onEvent).toHaveBeenCalledOnce()
       expect(mockObserver.onEvent).toHaveBeenCalledWith(
         expect.any(Object),
         'llm.response',
@@ -394,7 +393,7 @@ describe('Claude', () => {
 
   describe('Group 5: Error Propagation', () => {
 
-    it('propagates Anthropic API error unchanged and does not call onEvent', async () => {
+    it('propagates Anthropic API error unchanged and does not emit llm.response', async () => {
       // arrange
       const apiError = new Error('AuthenticationError')
       mockCreate.mockRejectedValue(apiError)
@@ -407,7 +406,8 @@ describe('Claude', () => {
 
       // assert
       await expect(act()).rejects.toThrow('AuthenticationError')
-      expect(mockObserver.onEvent).not.toHaveBeenCalled()
+      const eventTypes = mockObserver.onEvent.mock.calls.map((c: unknown[]) => c[1])
+      expect(eventTypes).not.toContain('llm.response')
     })
 
     it('propagates network error and returns no LLMResponse', async () => {
@@ -645,6 +645,122 @@ describe('Claude', () => {
 
   })
 
+  describe('Group 8: "llm.request" emission', () => {
+
+    it('emits "llm.request" with modelId and providerName before client.messages.create', async () => {
+      // arrange
+      const mockObserver = { onEvent: vi.fn() }
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([{ role: 'user', content: 'hello' }], { tools: [{ name: 'search', description: 'search', inputSchema: {} }] })
+
+      // assert
+      const calls = mockObserver.onEvent.mock.calls
+      expect(calls[0]?.[1]).toBe('llm.request')
+      expect(calls[0]?.[2]).toEqual({ modelId: 'claude-3-5-haiku-20241022', providerName: 'anthropic' })
+      expect(mockCreate).toHaveBeenCalledOnce()
+      expect(mockObserver.onEvent.mock.invocationCallOrder[0] ?? 0).toBeLessThan(mockCreate.mock.invocationCallOrder[0] ?? 0)
+    })
+
+    it('emits "llm.request" before "llm.response" on successful invoke', async () => {
+      // arrange
+      const mockObserver = { onEvent: vi.fn() }
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([{ role: 'user', content: 'hi' }])
+
+      // assert
+      expect(mockObserver.onEvent).toHaveBeenCalledTimes(2)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[1]?.[1]).toBe('llm.response')
+    })
+
+    it('"llm.request" payload excludes messages and tools; "llm.response" payload excludes output', async () => {
+      // arrange
+      const mockObserver = { onEvent: vi.fn() }
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([{ role: 'user', content: 'hi' }])
+
+      // assert
+      const requestPayload = mockObserver.onEvent.mock.calls[0]?.[2]
+      expect(requestPayload).not.toHaveProperty('messages')
+      expect(requestPayload).not.toHaveProperty('tools')
+      const responsePayload = mockObserver.onEvent.mock.calls[1]?.[2]
+      expect(responsePayload).not.toHaveProperty('output')
+    })
+
+    it('emits "llm.request" before SDK throw and does not emit "llm.response" on error', async () => {
+      // arrange
+      mockCreate.mockRejectedValue(new Error('AuthenticationError'))
+      const mockObserver = { onEvent: vi.fn() }
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await expect(adapter.invoke([{ role: 'user', content: 'hi' }])).rejects.toThrow('AuthenticationError')
+
+      // assert
+      expect(mockObserver.onEvent).toHaveBeenCalledTimes(1)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+    })
+
+    it('resolves normally and does not throw when no observer is bound', async () => {
+      // arrange
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+
+      // act
+      const result = await adapter.invoke([{ role: 'user', content: 'hi' }])
+
+      // assert
+      expect(result).toBeDefined()
+      expect(result.stopReason).toBe('end')
+    })
+
+    it('two consecutive invocations produce request/response/request/response sequence', async () => {
+      // arrange
+      const mockObserver = { onEvent: vi.fn() }
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([{ role: 'user', content: 'first' }])
+      await adapter.invoke([{ role: 'user', content: 'second' }])
+
+      // assert
+      expect(mockObserver.onEvent).toHaveBeenCalledTimes(4)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[1]?.[1]).toBe('llm.response')
+      expect(mockObserver.onEvent.mock.calls[2]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[3]?.[1]).toBe('llm.response')
+    })
+
+    it('both "llm.request" and "llm.response" carry the StepContext set via setStepContext', async () => {
+      // arrange
+      const mockObserver = { onEvent: vi.fn() }
+      const adapter = new Claude('claude-3-5-haiku-20241022')
+      adapter.bindObserver(mockObserver)
+      const ctx = { agentId: 'agent-5', sessionId: 'sess-99', stepName: 'call-model' }
+      adapter.setStepContext(ctx)
+
+      // act
+      await adapter.invoke([{ role: 'user', content: 'hi' }])
+
+      // assert
+      expect(mockObserver.onEvent.mock.calls[0]?.[0]).toEqual(ctx)
+      expect(mockObserver.onEvent.mock.calls[1]?.[0]).toEqual(ctx)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[1]?.[1]).toBe('llm.response')
+    })
+
+  })
+
   describe('Group 6: Edge Cases and Repeated Calls', () => {
 
     it('forwards empty messages array to SDK without modification', async () => {
@@ -675,7 +791,7 @@ describe('Claude', () => {
       await claude.invoke([{ role: 'user', content: 'hi' }])
 
       // assert
-      expect(secondObserver.onEvent).toHaveBeenCalledOnce()
+      expect(secondObserver.onEvent).toHaveBeenCalled()
       expect(firstObserver.onEvent).not.toHaveBeenCalled()
     })
 

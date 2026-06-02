@@ -1,4 +1,4 @@
-import type { LLM, Message, Tool, ToolCall, LLMResponse, LLMUsageEvent } from '@noetaris/harness-types'
+import type { LLM, Message, Tool, ToolCall, LLMResponse, LLMUsageEvent, LLMRequestEvent } from '@noetaris/harness-types'
 import type { ObserverAware, Observer, StepContext } from '@noetaris/harness'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Tool as AnthropicSDKTool } from '@anthropic-ai/sdk/resources/messages/messages.js'
@@ -171,6 +171,9 @@ export class Claude implements LLM, ObserverAware {
   async invoke(messages: Message[], options?: { tools?: Tool[] }): Promise<LLMResponse> {
     const translatedMessages = translateMessages(messages)
     const tools = options?.tools
+
+    const requestEvent: LLMRequestEvent = { modelId: this.model, providerName: 'anthropic' }
+    this.observer.onEvent?.(this.stepContext, 'llm.request', requestEvent)
 
     const response = await this.client.messages.create({
       model: this.model,

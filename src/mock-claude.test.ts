@@ -134,7 +134,6 @@ describe('MockClaude', () => {
       await mock.invoke([])
 
       // assert
-      expect(observer.onEvent).toHaveBeenCalledOnce()
       expect(observer.onEvent).toHaveBeenCalledWith(ctx, 'llm.response', { tokens: { input: 0, output: 0 }, modelId: 'mock', stopReason: 'end', providerName: 'mock' })
     })
 
@@ -215,6 +214,108 @@ describe('MockClaude', () => {
 
   })
 
+  describe('Group 8: "llm.request" emission', () => {
+
+    it('emits "llm.request" with modelId: "mock" and providerName: "mock" before dequeue', async () => {
+      // arrange
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const adapter = new MockClaude(response)
+      const mockObserver = { onEvent: vi.fn() }
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([])
+
+      // assert
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[0]?.[2]).toEqual({ modelId: 'mock', providerName: 'mock' })
+    })
+
+    it('emits "llm.request" before "llm.response" on success; no optional fields', async () => {
+      // arrange
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const adapter = new MockClaude(response)
+      const mockObserver = { onEvent: vi.fn() }
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([])
+
+      // assert
+      expect(mockObserver.onEvent).toHaveBeenCalledTimes(2)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[1]?.[1]).toBe('llm.response')
+      expect(mockObserver.onEvent.mock.calls[0]?.[2]).not.toHaveProperty('messages')
+      expect(mockObserver.onEvent.mock.calls[0]?.[2]).not.toHaveProperty('tools')
+      expect(mockObserver.onEvent.mock.calls[1]?.[2]).not.toHaveProperty('output')
+    })
+
+    it('emits "llm.request" before MockClaudeEmptyQueueError throw and does not emit "llm.response"', async () => {
+      // arrange
+      const adapter = new MockClaude()
+      const mockObserver = { onEvent: vi.fn() }
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await expect(adapter.invoke([])).rejects.toThrow(MockClaudeEmptyQueueError)
+
+      // assert
+      expect(mockObserver.onEvent).toHaveBeenCalledTimes(1)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+    })
+
+    it('returns queued response normally when no observer is bound', async () => {
+      // arrange
+      const response: LLMResponse = { text: 'ok', toolCalls: [], stopReason: 'end' }
+      const adapter = new MockClaude(response)
+
+      // act
+      const result = await adapter.invoke([])
+
+      // assert
+      expect(result).toEqual(response)
+    })
+
+    it('two consecutive invocations produce request/response/request/response sequence', async () => {
+      // arrange
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const adapter = new MockClaude(response)
+      const mockObserver = { onEvent: vi.fn() }
+      adapter.bindObserver(mockObserver)
+
+      // act
+      await adapter.invoke([])
+      await adapter.invoke([])
+
+      // assert
+      expect(mockObserver.onEvent).toHaveBeenCalledTimes(4)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[1]?.[1]).toBe('llm.response')
+      expect(mockObserver.onEvent.mock.calls[2]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[3]?.[1]).toBe('llm.response')
+    })
+
+    it('both "llm.request" and "llm.response" carry the StepContext set via setStepContext', async () => {
+      // arrange
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const adapter = new MockClaude(response)
+      const mockObserver = { onEvent: vi.fn() }
+      adapter.bindObserver(mockObserver)
+      const ctx: StepContext = { agentId: 'agent-5', sessionId: 'sess-99', stepName: 'call-model' }
+      adapter.setStepContext(ctx)
+
+      // act
+      await adapter.invoke([])
+
+      // assert
+      expect(mockObserver.onEvent.mock.calls[0]?.[0]).toEqual(ctx)
+      expect(mockObserver.onEvent.mock.calls[1]?.[0]).toEqual(ctx)
+      expect(mockObserver.onEvent.mock.calls[0]?.[1]).toBe('llm.request')
+      expect(mockObserver.onEvent.mock.calls[1]?.[1]).toBe('llm.response')
+    })
+
+  })
+
   describe('Group 7: Edge cases', () => {
 
     it('enqueue with a single non-array LLMResponse treats it as a one-element queue', async () => {
@@ -242,7 +343,7 @@ describe('MockClaude', () => {
       await mock.invoke([])
 
       // assert
-      expect(obs2.onEvent).toHaveBeenCalledOnce()
+      expect(obs2.onEvent).toHaveBeenCalled()
       expect(obs1.onEvent).not.toHaveBeenCalled()
     })
 

@@ -1,4 +1,4 @@
-import type { LLM, Message, Tool, LLMResponse, LLMUsageEvent } from '@noetaris/harness-types'
+import type { LLM, Message, Tool, LLMResponse, LLMUsageEvent, LLMRequestEvent } from '@noetaris/harness-types'
 import type { ObserverAware, Observer, StepContext } from '@noetaris/harness'
 
 /** Thrown by {@link MockClaude} when `invoke` is called with no responses queued. */
@@ -60,6 +60,9 @@ export class MockClaude implements LLM, ObserverAware {
 
   async invoke(messages: Message[], options?: { tools?: Tool[] }): Promise<LLMResponse> {
     void options
+    const requestEvent: LLMRequestEvent = { modelId: 'mock', providerName: 'mock' }
+    this.observer.onEvent?.(this.stepContext, 'llm.request', requestEvent)
+
     if (this.queue.length === 0) {
       throw new MockClaudeEmptyQueueError()
     }
