@@ -9,7 +9,7 @@ describe('MockClaude', () => {
 
     it('returns the same response on every call when constructed with a single response', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hello', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hello', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude(response)
 
       // act
@@ -29,9 +29,9 @@ describe('MockClaude', () => {
 
     it('returns responses in FIFO order when constructed with three responses', async () => {
       // arrange
-      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end' }
-      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end' }
-      const r3: LLMResponse = { text: 'three', toolCalls: [], stopReason: 'end' }
+      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r3: LLMResponse = { text: 'three', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude([r1, r2, r3])
 
       // act
@@ -47,9 +47,9 @@ describe('MockClaude', () => {
 
     it('last response is sticky after all preceding responses are consumed', async () => {
       // arrange
-      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end' }
-      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end' }
-      const r3: LLMResponse = { text: 'three', toolCalls: [], stopReason: 'end' }
+      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r3: LLMResponse = { text: 'three', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude([r1, r2, r3])
       await mock.invoke([])
       await mock.invoke([])
@@ -64,8 +64,8 @@ describe('MockClaude', () => {
 
     it('calls beyond queue size all return the last response', async () => {
       // arrange
-      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end' }
-      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end' }
+      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude([r1, r2])
 
       // act
@@ -87,7 +87,7 @@ describe('MockClaude', () => {
 
     it('returns enqueued response after starting with an empty queue', async () => {
       // arrange
-      const response: LLMResponse = { text: 'added', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'added', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude()
       mock.enqueue(response)
 
@@ -100,9 +100,9 @@ describe('MockClaude', () => {
 
     it('returns all responses in order when enqueue is called after construction', async () => {
       // arrange
-      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end' }
-      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end' }
-      const r3: LLMResponse = { text: 'three', toolCalls: [], stopReason: 'end' }
+      const r1: LLMResponse = { text: 'one', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r2: LLMResponse = { text: 'two', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
+      const r3: LLMResponse = { text: 'three', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude([r1])
       mock.enqueue([r2, r3])
 
@@ -123,7 +123,7 @@ describe('MockClaude', () => {
 
     it('fires onEvent with correct event type and payload after invoke', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude(response)
       const observer = { onEvent: vi.fn() }
       mock.bindObserver(observer)
@@ -139,7 +139,7 @@ describe('MockClaude', () => {
 
     it('passes the StepContext from setStepContext to onEvent', async () => {
       // arrange
-      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end' })
+      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } })
       const observer = { onEvent: vi.fn() }
       mock.bindObserver(observer)
       const ctx: StepContext = { agentId: 'agent-99', sessionId: 'sess-42', stepName: 'my-step' }
@@ -154,7 +154,7 @@ describe('MockClaude', () => {
 
     it('passes default StepContext to onEvent when setStepContext is never called', async () => {
       // arrange
-      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end' })
+      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } })
       const observer = { onEvent: vi.fn() }
       mock.bindObserver(observer)
 
@@ -171,7 +171,7 @@ describe('MockClaude', () => {
 
     it('does not throw when observer is a NOOP object with no onEvent method', async () => {
       // arrange
-      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end' })
+      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } })
       mock.bindObserver({})
 
       // act
@@ -187,7 +187,7 @@ describe('MockClaude', () => {
 
     it('lastMessages reflects the messages array from the most recent invoke', async () => {
       // arrange
-      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end' })
+      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } })
       const msgs: Message[] = [{ role: 'user', content: 'hello' }]
 
       // act
@@ -218,7 +218,7 @@ describe('MockClaude', () => {
 
     it('emits "llm.request" with modelId: "mock" and providerName: "mock" before dequeue', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const adapter = new MockClaude(response)
       const mockObserver = { onEvent: vi.fn() }
       adapter.bindObserver(mockObserver)
@@ -233,7 +233,7 @@ describe('MockClaude', () => {
 
     it('emits "llm.request" before "llm.response" on success; no optional fields', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const adapter = new MockClaude(response)
       const mockObserver = { onEvent: vi.fn() }
       adapter.bindObserver(mockObserver)
@@ -266,7 +266,7 @@ describe('MockClaude', () => {
 
     it('returns queued response normally when no observer is bound', async () => {
       // arrange
-      const response: LLMResponse = { text: 'ok', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'ok', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const adapter = new MockClaude(response)
 
       // act
@@ -278,7 +278,7 @@ describe('MockClaude', () => {
 
     it('two consecutive invocations produce request/response/request/response sequence', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const adapter = new MockClaude(response)
       const mockObserver = { onEvent: vi.fn() }
       adapter.bindObserver(mockObserver)
@@ -297,7 +297,7 @@ describe('MockClaude', () => {
 
     it('both "llm.request" and "llm.response" carry the StepContext set via setStepContext', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const adapter = new MockClaude(response)
       const mockObserver = { onEvent: vi.fn() }
       adapter.bindObserver(mockObserver)
@@ -321,7 +321,7 @@ describe('MockClaude', () => {
     it('enqueue with a single non-array LLMResponse treats it as a one-element queue', async () => {
       // arrange
       const mock = new MockClaude()
-      const response: LLMResponse = { text: 'single', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'single', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       mock.enqueue(response)
 
       // act
@@ -333,7 +333,7 @@ describe('MockClaude', () => {
 
     it('onEvent fires on the most recently bound observer when bindObserver is called multiple times', async () => {
       // arrange
-      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end' })
+      const mock = new MockClaude({ text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } })
       const obs1 = { onEvent: vi.fn() }
       const obs2 = { onEvent: vi.fn() }
       mock.bindObserver(obs1)
@@ -349,7 +349,7 @@ describe('MockClaude', () => {
 
     it('returns configured response and sets lastMessages to empty array when invoked with empty messages', async () => {
       // arrange
-      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end' }
+      const response: LLMResponse = { text: 'hi', toolCalls: [], stopReason: 'end', usage: { inputTokens: 0, outputTokens: 0 } }
       const mock = new MockClaude(response)
 
       // act

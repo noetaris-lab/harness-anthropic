@@ -109,7 +109,7 @@ function mapStopReason(stopReason: string): LLMResponse['stopReason'] {
   return 'end'
 }
 
-function normalizeResponse(response: Anthropic.Message): LLMResponse {
+function normalizeResponse(response: Anthropic.Message): Omit<LLMResponse, 'usage'> {
   let text = ''
   const toolCalls: ToolCall[] = []
 
@@ -146,9 +146,11 @@ const ZEROED_STEP_CONTEXT: StepContext = { agentId: '', sessionId: '', stepName:
 export class Claude implements LLM, ObserverAware {
   private readonly client: Anthropic
   private readonly model: string
-  private readonly options?: ClaudeOptions
+  private readonly options: ClaudeOptions | undefined
   private observer: Observer = {}
   private stepContext: StepContext = ZEROED_STEP_CONTEXT
+  private contextWindowSize: number | undefined = undefined
+  private contextWindowFetched = false
 
   /**
    * @param model - Anthropic model ID, e.g. `'claude-3-5-haiku-20241022'`.
@@ -158,6 +160,17 @@ export class Claude implements LLM, ObserverAware {
     this.model = model
     this.options = options
     this.client = new Anthropic({ apiKey: options?.apiKey })
+  }
+
+  private async fetchContextWindow(): Promise<void> {
+    try {
+      const response = await this.client.models.retrieve(this.model)
+      this.contextWindowSize = response.max_input_tokens ?? undefined
+    } catch {
+      // silent: suppress to avoid leaking API key metadata from SDK error messages
+    } finally {
+      this.contextWindowFetched = true
+    }
   }
 
   bindObserver(observer: Observer): void {
@@ -172,6 +185,10 @@ export class Claude implements LLM, ObserverAware {
     const translatedMessages = translateMessages(messages)
     const tools = options?.tools
 
+    if (!this.contextWindowFetched) {
+      await this.fetchContextWindow()
+    }
+
     const requestEvent: LLMRequestEvent = { modelId: this.model, providerName: 'anthropic' }
     this.observer.onEvent?.(this.stepContext, 'llm.request', requestEvent)
 
@@ -185,13 +202,24 @@ export class Claude implements LLM, ObserverAware {
       ...(tools !== undefined ? { tools: translateTools(tools) } : {}),
     })
 
-    const result = normalizeResponse(response)
+    const normalized = normalizeResponse(response)
+    const contextWindowSize = this.contextWindowSize
+
+    const result: LLMResponse = {
+      ...normalized,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        ...(contextWindowSize !== undefined ? { contextWindowSize } : {}),
+      },
+    }
 
     const event: LLMUsageEvent = {
       tokens:     { input: response.usage.input_tokens, output: response.usage.output_tokens },
       modelId:    this.model,
       stopReason: result.stopReason,
       providerName: 'anthropic',
+      ...(contextWindowSize !== undefined ? { contextWindowSize } : {}),
     }
     this.observer.onEvent?.(this.stepContext, 'llm.response', event)
 
