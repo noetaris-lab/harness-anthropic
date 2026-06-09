@@ -532,11 +532,11 @@ describe('Claude', () => {
 
     })
 
-    describe('explicitly undefined options use defaults or are absent', () => {
+    describe('absent options use defaults or are omitted', () => {
 
-      it('omits temperature from body when temperature: undefined is passed explicitly', async () => {
+      it('omits temperature from body when temperature is omitted', async () => {
         // arrange
-        const claude = new Claude('claude-3-5-haiku-20241022', { temperature: undefined })
+        const claude = new Claude('claude-3-5-haiku-20241022', {})
 
         // act
         await claude.invoke([{ role: 'user', content: 'hi' }])
@@ -547,9 +547,9 @@ describe('Claude', () => {
         expect(callArg).toMatchObject({ max_tokens: 4096 })
       })
 
-      it('sends max_tokens: 4096 when maxTokens: undefined is passed explicitly', async () => {
+      it('sends max_tokens: 4096 when maxTokens is omitted', async () => {
         // arrange
-        const claude = new Claude('claude-3-5-haiku-20241022', { maxTokens: undefined })
+        const claude = new Claude('claude-3-5-haiku-20241022', {})
 
         // act
         await claude.invoke([{ role: 'user', content: 'hi' }])
@@ -559,9 +559,9 @@ describe('Claude', () => {
         expect(callArg).toMatchObject({ max_tokens: 4096 })
       })
 
-      it('omits top_p from body when topP: undefined is passed explicitly', async () => {
+      it('omits top_p from body when topP is omitted', async () => {
         // arrange
-        const claude = new Claude('claude-3-5-haiku-20241022', { topP: undefined })
+        const claude = new Claude('claude-3-5-haiku-20241022', {})
 
         // act
         await claude.invoke([{ role: 'user', content: 'hi' }])
@@ -571,9 +571,9 @@ describe('Claude', () => {
         expect(callArg).not.toHaveProperty('top_p')
       })
 
-      it('omits thinking from body when thinking: undefined is passed explicitly', async () => {
+      it('omits thinking from body when thinking is omitted', async () => {
         // arrange
-        const claude = new Claude('claude-3-5-haiku-20241022', { thinking: undefined })
+        const claude = new Claude('claude-3-5-haiku-20241022', {})
 
         // act
         await claude.invoke([{ role: 'user', content: 'hi' }])
