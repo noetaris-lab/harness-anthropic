@@ -2,8 +2,6 @@
 
 Anthropic Claude adapter for [@noetaris/harness](../core).
 
-> **Status:** not yet released. Implementation tracked in F20.
-
 ## Overview
 
 `@noetaris/harness-anthropic` provides a `Claude` class that implements the `LLM` and `ObserverAware` interfaces from `@noetaris/harness`. It handles translation between the harness message format and the Anthropic SDK format, and emits telemetry events (token usage, model ID) through an attached `Observer`.
@@ -27,7 +25,10 @@ Requires Node.js ≥ 22.
 ```ts
 import { Claude } from '@noetaris/harness-anthropic'
 
-const llm = new Claude({ apiKey: process.env.ANTHROPIC_API_KEY })
+// The model ID is the required first argument; options are optional.
+const llm = new Claude('claude-3-5-haiku-20241022', {
+  apiKey: process.env.ANTHROPIC_API_KEY, // defaults to the ANTHROPIC_API_KEY env var
+})
 
 // Wire into a harness provider slot
 h.provide('model', runtime())
@@ -40,10 +41,17 @@ const run = agent.run(initialState, { model: llm })
 
 ### `Claude`
 
-Implements `LLM` and `ObserverAware`.
+```ts
+new Claude(model: string, options?: ClaudeOptions)
+```
 
-- **`invoke(messages, options?)`** — translates harness `Message[]` and `Tool[]` to Anthropic SDK format, calls `client.messages.create()`, and maps the response back to `LLMResponse`.
-- **`bindObserver(observer)`** — attaches an `Observer`; after each `invoke`, emits an `"llm.response"` event with `{ tokens: { input, output }, modelId }`.
+Implements `LLM` and `ObserverAware`. `ClaudeOptions` accepts `apiKey` and the
+generation parameters `temperature`, `maxTokens` (default `4096`), `topP`, and
+`thinking` (extended-thinking budget for supported models).
+
+- **`invoke(messages, options?)`** — translates harness `Message[]` and `Tool[]` to Anthropic SDK format, calls `client.messages.create()`, and maps the response back to an `LLMResponse` (including a required `usage: { inputTokens, outputTokens, contextWindowSize? }` field).
+- **`bindObserver(observer)`** — attaches an `Observer`. Each `invoke` emits an `"llm.request"` event (`{ modelId, providerName: 'anthropic' }`) before the call and an `"llm.response"` event (`{ tokens: { input, output }, modelId, stopReason, providerName, contextWindowSize? }`) after it.
+- **`setStepContext(ctx)`** — sets the `StepContext` attached to emitted events; called by the harness before each step.
 
 ### `MockClaude`
 
